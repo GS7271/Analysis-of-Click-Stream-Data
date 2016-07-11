@@ -1,0 +1,107 @@
+---
+title: "nyt_EDA"
+author: "Oscar Padilla"
+date: "July 7, 2016"
+output: 
+  html_document:
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache= TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+```
+
+## DOWNLOAD THE DATA FOR DAY 15
+
+```{r}
+URL <- "http://stat.columbia.edu/~rachel/datasets/"
+file_day <- "nyt15.csv"
+download_file <- paste(URL, file_day, sep = "")
+data_day <- read.csv(url(download_file))
+```
+
+## EXPLORE THE DATA
+
+```{r}
+str(data_day)
+head(data_day)
+nrow(data_day[data_day$Impressions == 0, ])
+nrow(data_day[data_day$Signed_In == 0, ])
+```
+
+ALMOST 200K USERS DIDN'T SIGN FOR WHOM NEITHER AGE NOR GENDER IS AVAILABLE
+
+## DATA CLEANSING
+
+```{r}
+ImpSub <- data_day[data_day$Signed_In == 1 & data_day$Impressions > 0, ]
+ImpSub$ageGroup <- cut(ImpSub$Age, c(-Inf, 0, 18, 24, 34, 44, 54, 64, Inf))
+str(ImpSub)
+summary(ImpSub)
+```
+
+## CALCULATE THE CLICK-THROUGH-RATE
+
+```{r}
+ImpSub$CTR <- ImpSub$Clicks/ImpSub$Impressions
+```
+
+## PLOT DISTRIBUTION OF NUMBER OF IMPRESSIONS FOR AGE GROUPS
+
+```{r}
+ggplot(subset(ImpSub,), aes(x = Impressions, fill = ageGroup))+ geom_histogram(binwidth = 1)
+```
+
+## PLOT DISTRIBUTION OF CLICK-THROUGH-RATE BY AGE GROUP
+
+```{r}
+ggplot(subset(ImpSub, CTR > 0), aes(x = CTR, fill = ageGroup)) + labs(title = "Click-through rate by age group (05/15/2012)")+ geom_histogram(binwidth = 0.1) + facet_wrap(~ageGroup)
+```
+
+## DEFINE VARIABLE TO DEFINE USERS BASED ON CTR BEHAVIOR
+
+```{r}
+ImpSub$CTR_Group <- cut(ImpSub$CTR, c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf))
+levels(ImpSub$CTR_Group) <- c("CTR<0.2", "0.2<=CTR<0.4", "0.4<=CTR<0.6", "0.6<=CTR<0.8", "CTR>=0.8")
+summary(ImpSub)
+```
+
+## TOTAL NUMBER OF MALE IMPRESSIONS, CLICKS AND SIGNED_IN
+
+```{r}
+library(doBy)
+summaryBy(Impressions + Signed_In + Clicks ~ CTR_Group, data = subset(ImpSub, Gender = 1), FUN = sum, na.rm = TRUE)
+```
+
+## MEAN OF AGE, IMPRESSIONS, CLICKS, CTR AND PERCENTAGE OF MALES AND SIGNED_IN
+
+```{r}
+summaryBy(Impressions + Clicks + CTR + CTR_Group + Signed_In ~ Gender, data = subset(ImpSub, Impressions >0), FUN = c(mean))
+# The number of males and females signed in are as follows (0 = Female; 1 = Male)
+ImpSubSummary <- data.matrix(summaryBy(Signed_In ~ Gender, data = ImpSub, FUN = c(length)))
+ImpSubSummary
+# The proportion of males (and females) signed in are as follows (0 = Female; 1 = Male)
+prop.table(ImpSubSummary, 2)
+```
+
+## MEAN OF IMPRESSIONS, CLICKS, CTR AND PERCENTAGE OF MALES AND SIGNED_IN BY AGEGROUP
+
+```{r}
+summaryBy(Impressions + Clicks + CTR + CTR_Group + Signed_In ~ ageGroup, data = subset(ImpSub, Impressions >0), FUN = c(mean))
+# The number of males and females signed in are as follows (0 = Female; 1 = Male)
+ImpSubSum_ageGroup <- summaryBy(Signed_In ~ Gender + ageGroup, data = ImpSub, FUN = c(length))
+# The proportion of males (and females) signed in are as follows (0 = Female; 1 = Male)
+ImpSubSum_ageGroup$MaleProp <- prop.table(ImpSubSum_ageGroup[, 3])
+ImpSubSum_ageGroup[ImpSubSum_ageGroup$Gender == 1, ]
+```
+
+## ADDITIONAL GRAPH: Analysis of Clicks > 0
+
+```{r}
+ImpSubSum_plot <- summaryBy(Signed_In ~ Gender + ageGroup + CTR_Group, data = subset(ImpSub, Clicks > 0), FUN = c(length))
+ImpSubSum_plot
+ggplot(ImpSubSum_plot, aes(x = ageGroup, y = CTR_Group)) + geom_tile(aes(fill = Signed_In.length), color = "white") + scale_fill_gradient2(low = "white", high = "red", limit = c(0, 1300)) + facet_wrap(~Gender) + theme(axis.text.x = element_text(angle = 90)) + ggtitle(expression(atop("Click-through rate by gender (05/15/2012)", atop(italic("0 = Female, 1 = Male"), ""))))
+```

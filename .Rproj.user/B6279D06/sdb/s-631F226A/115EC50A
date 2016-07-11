@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "---\ntitle: \"nyt_EDA\"\nauthor: \"Oscar Padilla\"\ndate: \"July 7, 2016\"\noutput: \n  html_document:\n    keep_md: yes\n---\n\n```{r setup, include=FALSE}\nknitr::opts_chunk$set(cache= TRUE)\nknitr::opts_chunk$set(echo = TRUE)\n\nlibrary(ggplot2)\n```\n\n## DOWNLOAD THE DATA FOR DAY 15\n\n```{r}\nURL <- \"http://stat.columbia.edu/~rachel/datasets/\"\nfile_day <- \"nyt15.csv\"\ndownload_file <- paste(URL, file_day, sep = \"\")\ndata_day <- read.csv(url(download_file))\n```\n\n## EXPLORE THE DATA\n\n```{r}\nstr(data_day)\nhead(data_day)\nnrow(data_day[data_day$Impressions == 0, ])\nnrow(data_day[data_day$Signed_In == 0, ])\n```\n\nALMOST 200K USERS DIDN'T SIGN FOR WHOM NEITHER AGE NOR GENDER IS AVAILABLE\n\n## DATA CLEANSING\n\n```{r}\nImpSub <- data_day[data_day$Signed_In == 1 & data_day$Impressions > 0, ]\nImpSub$ageGroup <- cut(ImpSub$Age, c(-Inf, 0, 18, 24, 34, 44, 54, 64, Inf))\nstr(ImpSub)\nsummary(ImpSub)\n```\n\n## CALCULATE THE CLICK-THROUGH-RATE\n\n```{r}\nImpSub$CTR <- ImpSub$Clicks/ImpSub$Impressions\n```\n\n## PLOT DISTRIBUTION OF NUMBER OF IMPRESSIONS FOR AGE GROUPS\n\n```{r}\nggplot(subset(ImpSub,), aes(x = Impressions, fill = ageGroup))+ geom_histogram(binwidth = 1)\n```\n\n## PLOT DISTRIBUTION OF CLICK-THROUGH-RATE BY AGE GROUP\n\n```{r}\nggplot(subset(ImpSub, CTR > 0), aes(x = CTR, fill = ageGroup)) + labs(title = \"Click-through rate by age group (05/15/2012)\")+ geom_histogram(binwidth = 0.1) + facet_wrap(~ageGroup)\n```\n\n## DEFINE VARIABLE TO DEFINE USERS BASED ON CTR BEHAVIOR\n\n```{r}\nImpSub$CTR_Group <- cut(ImpSub$CTR, c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf))\nlevels(ImpSub$CTR_Group) <- c(\"CTR<0.2\", \"0.2<=CTR<0.4\", \"0.4<=CTR<0.6\", \"0.6<=CTR<0.8\", \"CTR>=0.8\")\nsummary(ImpSub)\n```\n\n## TOTAL NUMBER OF MALE IMPRESSIONS, CLICKS AND SIGNED_IN\n\n```{r}\nlibrary(doBy)\nsummaryBy(Impressions + Signed_In + Clicks ~ CTR_Group, data = subset(ImpSub, Gender = 1), FUN = sum, na.rm = TRUE)\n```\n\n## MEAN OF AGE, IMPRESSIONS, CLICKS, CTR AND PERCENTAGE OF MALES AND SIGNED_IN\n\n```{r}\nsummaryBy(Impressions + Clicks + CTR + CTR_Group + Signed_In ~ Gender, data = subset(ImpSub, Impressions >0), FUN = c(mean))\n# The number of males and females signed in are as follows (0 = Female; 1 = Male)\nImpSubSummary <- data.matrix(summaryBy(Signed_In ~ Gender, data = ImpSub, FUN = c(length)))\nImpSubSummary\n# The proportion of males (and females) signed in are as follows (0 = Female; 1 = Male)\nprop.table(ImpSubSummary, 2)\n```\n\n## MEAN OF IMPRESSIONS, CLICKS, CTR AND PERCENTAGE OF MALES AND SIGNED_IN BY AGEGROUP\n\n```{r}\nsummaryBy(Impressions + Clicks + CTR + CTR_Group + Signed_In ~ ageGroup, data = subset(ImpSub, Impressions >0), FUN = c(mean))\n# The number of males and females signed in are as follows (0 = Female; 1 = Male)\nImpSubSum_ageGroup <- summaryBy(Signed_In ~ Gender + ageGroup, data = ImpSub, FUN = c(length))\n# The proportion of males (and females) signed in are as follows (0 = Female; 1 = Male)\nImpSubSum_ageGroup$MaleProp <- prop.table(ImpSubSum_ageGroup[, 3])\nImpSubSum_ageGroup[ImpSubSum_ageGroup$Gender == 1, ]\n```\n\n## ADDITIONAL GRAPH: Analysis of Clicks > 0\n\n```{r}\nImpSubSum_plot <- summaryBy(Signed_In ~ Gender + ageGroup + CTR_Group, data = subset(ImpSub, Clicks > 0), FUN = c(length))\nImpSubSum_plot\nggplot(ImpSubSum_plot, aes(x = ageGroup, y = CTR_Group)) + geom_tile(aes(fill = Signed_In.length), color = \"white\") + scale_fill_gradient2(low = \"white\", high = \"red\", limit = c(0, 1300)) + facet_wrap(~Gender) + theme(axis.text.x = element_text(angle = 90)) + ggtitle(expression(atop(\"Click-through rate by gender (05/15/2012)\", atop(italic(\"0 = Female, 1 = Male\"), \"\"))))\n```",
+    "created" : 1467876288397.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1737584753",
+    "id" : "115EC50A",
+    "lastKnownWriteTime" : 1468216307,
+    "last_content_update" : 1468216307320,
+    "path" : "~/Documents/MSDS6306/Unit 8/NYT_EDA/LiveSession8Assignment.Rmd",
+    "project_path" : "LiveSession8Assignment.Rmd",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
